@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vice Harbor: The One:1 Heist</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #160f2e; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: #fff; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; display: none; }
+  #hud.on { display: block; }
+  #objective { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); max-width: 640px; text-align: center;
+    background: rgba(10,6,28,.55); border: 1px solid rgba(255,170,90,.45); border-radius: 10px; padding: 8px 18px; }
+  #objective .obj-title { font-size: 11px; letter-spacing: 3px; color: #ffb37a; text-transform: uppercase; }
+  #objective .obj-text { font-size: 17px; font-weight: 600; margin-top: 2px; text-shadow: 0 2px 6px #000; }
+  #toast { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: 700; letter-spacing: 1px;
+    color: #ffd9a0; text-shadow: 0 2px 8px #000; opacity: 0; transition: opacity .3s; }
+  #topright { position: absolute; top: 16px; right: 20px; text-align: right; }
+  #stars { font-size: 26px; letter-spacing: 3px; line-height: 1; text-shadow: 0 2px 6px #000; }
+  #stars .lit { color: #ffd23e; } #stars .dim { color: rgba(255,255,255,.22); }
+  #stars.flash .lit { color: #ff5340; }
+  #cash { font-size: 22px; font-weight: 700; color: #7dff9a; text-shadow: 0 2px 6px #000; margin-top: 4px; }
+  #clock { font-size: 12px; color: rgba(255,255,255,.75); letter-spacing: 2px; }
+  #minimapWrap { position: absolute; left: 18px; bottom: 18px; width: 196px; }
+  #minimap { width: 196px; height: 196px; border-radius: 50%; border: 3px solid rgba(255,179,122,.65); box-shadow: 0 4px 24px rgba(0,0,0,.6); background: #141b2e; display: block; }
+  .barRow { display: flex; align-items: center; gap: 6px; margin-top: 7px; font-size: 10px; letter-spacing: 1.5px; color: #ffd9c2; text-shadow: 0 1px 3px #000; }
+  .barOuter { flex: 1; height: 9px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.35); border-radius: 5px; overflow: hidden; }
+  .barInner { height: 100%; width: 100%; background: linear-gradient(90deg,#ff5340,#ffb37a); transition: width .15s; }
+  #vbar .barInner { background: linear-gradient(90deg,#ff5da2,#ffc2dd); }
+  #carbar .barInner { background: linear-gradient(90deg,#39c2ff,#aee6ff); }
+  #bottomright { position: absolute; right: 20px; bottom: 18px; text-align: right; }
+  #weapon { font-size: 19px; font-weight: 700; letter-spacing: 1px; text-shadow: 0 2px 6px #000; }
+  #weapon .ammo { color: #ffd23e; font-size: 24px; }
+  #weapon .reload { color: #ff5340; font-size: 13px; letter-spacing: 2px; }
+  #speed { font-size: 30px; font-weight: 800; color: #fff; text-shadow: 0 2px 8px #000; }
+  #speed small { font-size: 12px; color: rgba(255,255,255,.7); letter-spacing: 2px; }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; transform: translate(-50%,-50%); opacity: .9; }
+  #crosshair:before, #crosshair:after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 4px #000; }
+  #crosshair:before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+  #crosshair:after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+  #prompt { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); font-size: 16px; font-weight: 600;
+    background: rgba(10,6,28,.6); padding: 7px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,.3); display: none; }
+  #prompt b { color: #ffd23e; }
+  #dmg { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(255,30,20,.55) 100%); opacity: 0; }
+  #wanted { position: absolute; top: 64px; right: 20px; font-size: 11px; letter-spacing: 2.5px; color: rgba(255,255,255,.8); text-align: right; text-shadow: 0 1px 4px #000; }
+
+  /* ---------- Screens ---------- */
+  .screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; text-align: center;
+    background: radial-gradient(ellipse at 50% 65%, rgba(30,10,50,.25) 0%, rgba(10,4,26,.88) 78%); z-index: 5; padding: 24px; box-sizing: border-box; }
+  .screen.on { display: flex; }
+  .logo { font-size: 74px; font-weight: 900; letter-spacing: 2px; line-height: .95; margin: 0;
+    background: linear-gradient(180deg,#ffe9b0 15%,#ff9d5c 45%,#ff5da2 80%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 4px 22px rgba(255,93,162,.45)); font-style: italic; }
+  .logoSub { font-size: 21px; letter-spacing: 9px; color: #aee6ff; text-transform: uppercase; margin-top: 8px; text-shadow: 0 2px 10px #000; }
+  .story { max-width: 620px; font-size: 16.5px; line-height: 1.55; color: #f3e9ff; margin: 22px 0 4px; text-shadow: 0 2px 6px #000; }
+  .story b { color: #ffd23e; } .story .pink { color: #ff8fc0; }
+  .controls { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; margin: 18px 0 6px; font-size: 13px; color: rgba(255,255,255,.85); }
+  .controls div { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.16); border-radius: 8px; padding: 7px 12px; }
+  .controls b { color: #ffd23e; }
+  .bigbtn { pointer-events: auto; cursor: pointer; margin-top: 20px; font-size: 21px; font-weight: 800; letter-spacing: 3px; color: #1c0b2e;
+    background: linear-gradient(180deg,#ffd23e,#ff9d5c); border: none; border-radius: 12px; padding: 14px 46px; box-shadow: 0 8px 30px rgba(255,157,92,.45); }
+  .bigbtn:hover { filter: brightness(1.1); }
+  .ghostbtn { pointer-events: auto; cursor: pointer; margin-top: 12px; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #ffe9b0;
+    background: transparent; border: 1px solid rgba(255,233,176,.6); border-radius: 10px; padding: 10px 28px; }
+  .best { margin-top: 14px; font-size: 13px; letter-spacing: 2px; color: rgba(255,255,255,.65); }
+  .endTitle { font-size: 64px; font-weight: 900; letter-spacing: 4px; margin: 0; font-style: italic; }
+  .endStats { font-size: 18px; line-height: 1.7; color: #f3e9ff; margin-top: 10px; text-shadow: 0 2px 6px #000; }
+  .endStats b { color: #7dff9a; }
+  #help { position: fixed; left: 18px; top: 18px; z-index: 4; display: none; max-width: 250px; font-size: 12.5px; line-height: 1.75; color: rgba(255,255,255,.92);
+    background: rgba(10,6,28,.55); border: 1px solid rgba(255,255,255,.18); border-radius: 10px; padding: 10px 14px; pointer-events: none; }
+  #help.on { display: block; } #help b { color: #ffd23e; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Vice Harbor: The One:1 Heist — a 3D open-world crime game"></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud">
+  <div id="objective"><div class="obj-title">Objective</div><div class="obj-text" id="objText">…</div></div>
+  <div id="toast"></div>
+  <div id="topright">
+    <div id="stars"></div>
+    <div id="wanted">WANTED LEVEL</div>
+    <div id="cash">$0</div>
+    <div id="clock">PORT AZURA</div>
+  </div>
+  <div id="minimapWrap">
+    <canvas id="minimap" width="196" height="196"></canvas>
+    <div class="barRow"><span>YOU</span><div class="barOuter"><div class="barInner" id="hpFill"></div></div></div>
+    <div class="barRow" id="vbar"><span>VAL</span><div class="barOuter"><div class="barInner" id="valFill"></div></div></div>
+    <div class="barRow" id="carbar" style="display:none"><span>CAR</span><div class="barOuter"><div class="barInner" id="carFill"></div></div></div>
+  </div>
+  <div id="bottomright">
+    <div id="speed" style="display:none">0 <small>KM/H</small></div>
+    <div id="weapon">PISTOL <span class="ammo">12</span></div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="prompt"></div>
+</div>
+<div id="dmg"></div>
+<div id="help">
+  <b>WASD</b> move / drive &nbsp; <b>Mouse</b> camera &amp; aim<br>
+  <b>Click</b> shoot &nbsp; <b>E</b> enter / exit car<br>
+  <b>Shift</b> sprint &nbsp; <b>Space</b> handbrake<br>
+  <b>1 / 2</b> pistol / SMG &nbsp; <b>R</b> reload<br>
+  <b>P</b> pause &nbsp; <b>M</b> mute &nbsp; <b>H</b> this help
+</div>
+
+<div class="screen on" id="titleScreen">
+  <h1 class="logo">VICE HARBOR</h1>
+  <div class="logoSub">The One:1 Heist</div>
+  <p class="story">Port Azura, golden hour. Inside the Azure Palms showroom sits the <b>NORDWIND One:1</b> — a one-off
+  hypercar worth more than the whole marina. Your wheelman days are over, but <span class="pink">Valencia</span> has a plan,
+  a pistol, and absolutely no patience. Steal the One:1, outrun a <b>six-star</b> police response, and vanish into the north docks.</p>
+  <div class="controls">
+    <div><b>WASD</b> move / drive</div><div><b>Mouse</b> camera</div><div><b>Click</b> shoot</div>
+    <div><b>E</b> enter car</div><div><b>Shift</b> sprint</div><div><b>Space</b> handbrake</div>
+  </div>
+  <button class="bigbtn" id="playBtn">START THE HEIST</button>
+  <div class="best" id="bestLine"></div>
+</div>
+
+<div class="screen" id="pauseScreen">
+  <h1 class="endTitle" style="color:#ffe9b0">PAUSED</h1>
+  <p class="endStats">The city waits for no one. Well — just this once.</p>
+  <button class="bigbtn" id="resumeBtn">KEEP DRIVING</button>
+  <button class="ghostbtn" id="restartBtn">RESTART HEIST</button>
+</div>
+
+<div class="screen" id="overScreen">
+  <h1 class="endTitle" id="overTitle" style="color:#ff5340">WASTED</h1>
+  <p class="endStats" id="overStats"></p>
+  <button class="bigbtn" id="retryBtn">TRY AGAIN</button>
+  <button class="ghostbtn" id="roamBtn">FREE ROAM INSTEAD</button>
+</div>
+
+<div class="screen" id="winScreen">
+  <h1 class="endTitle" style="color:#7dff9a">HEIST COMPLETE</h1>
+  <p class="endStats" id="winStats"></p>
+  <button class="bigbtn" id="winRoamBtn">FREE ROAM THE CITY</button>
+  <button class="ghostbtn" id="winRetryBtn">RUN IT AGAIN</button>
+</div>
+
+<script src="./vendor/three.min.js"></script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
